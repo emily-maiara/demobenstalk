@@ -1,0 +1,48 @@
+name: Deploy AWS
+
+on:
+ workflow_dispatch:
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup .NET CORE
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: 5.0.x
+        
+    - name: Install dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Test
+      run: dotnet test --no-restore --verbosity normal
+      
+    - name: Publish 
+      run: dotnet publish -c Realese -o '${{ github.workspace }}/out'
+
+    - name: Zip Package
+      run:
+       cd ${{ github.workspace }}/out 
+       zip -r ${{ github.workspace }}/out.zip *
+       
+    - name: Deploy to EB
+      uses: einaregilsson/beanstalk-deploy@v20
+      with:
+        aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws_secret_key: ${{ secrets.AWS_SECRET_ACCES_KEY }}
+        application_name: emydeploy
+        environment_name: emydeploy
+        region: us-west-2
+        version_label: ${{ github.run_id }}
+        version_description: ${{ github.sha }}
+        deployment_package: ${{ github.workspace }}/out.zip 
+     
+     
